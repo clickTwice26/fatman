@@ -1,0 +1,58 @@
+name: fatman
+
+services:
+  postgres:
+    image: postgres:19-alpine
+    container_name: fatman-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-fatman}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fatman_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-fatman}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - fatman_pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fatman} -d ${POSTGRES_DB:-fatman}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  redis:
+    image: redis:8-alpine
+    container_name: fatman-redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --appendonly yes
+      --requirepass ${REDIS_PASSWORD:-fatman_redis_dev_password}
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - fatman_redisdata:/data
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=${REDIS_PASSWORD:-fatman_redis_dev_password} redis-cli ping | grep -q PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 3s
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: fatman-mailpit
+    restart: unless-stopped
+    ports:
+      - "${SMTP_PORT:-1025}:1025"
+      - "${MAILPIT_UI_PORT:-8025}:8025"
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 3s
+
+volumes:
+  fatman_pgdata:
+  fatman_redisdata:
