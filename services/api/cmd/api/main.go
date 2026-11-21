@@ -11,8 +11,12 @@ import (
 	"time"
 
 	"github.com/clickTwice26/fatman/services/api/internal/config"
+	"github.com/clickTwice26/fatman/services/api/internal/infrastructure/mailer"
 	"github.com/clickTwice26/fatman/services/api/internal/infrastructure/postgres"
 	infraredis "github.com/clickTwice26/fatman/services/api/internal/infrastructure/redis"
+	repopg "github.com/clickTwice26/fatman/services/api/internal/repository/postgres"
+	reporedis "github.com/clickTwice26/fatman/services/api/internal/repository/redis"
+	"github.com/clickTwice26/fatman/services/api/internal/service"
 	transporthttp "github.com/clickTwice26/fatman/services/api/internal/transport/http"
 	"github.com/clickTwice26/fatman/services/api/migrations"
 )
@@ -54,11 +58,46 @@ func main() {
 		}
 	}()
 
+	keyBuilder := infraredis.NewKeyBuilder(cfg.AppEnv)
+	rateLimiter := infraredis.NewSlidingWindowLimiter(redisClient.Raw, keyBuilder)
+	userRepo := repopg.NewUserRepository(pgClient.Pool)
+	otpStore := reporedis.NewOTPStore(
+		redisClient.Raw,
+		keyBuilder,
+		cfg.OTPHMACSecret,
+		cfg.OTPTTL,
+		cfg.OTPResendCooldown,
+		cfg.OTPMaxAttempts,
+	)
+	sessionStore := reporedis.NewSessionStore(
+		redisClient.Raw,
+		keyBuilder,
+		cfg.JWTAccessSecret,
+		cfg.RefreshTokenTTL,
+	)
+	tokenSvc := service.NewTokenService(cfg.JWTAccessSecret, cfg.JWTAccessTTL)
+	smtpMailer := mailer.NewSMTPMailer(cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPFrom)
+
+	authSvc := service.NewAuthService(service.AuthServiceDeps{
+		Users:             userRepo,
+		OTPStore:          otpStore,
+		SessionStore:      sessionStore,
+		Tokens:            tokenSvc,
+		Mailer:            smtpMailer,
+		OTPTTL:            cfg.OTPTTL,
+		OTPResendCooldown: cfg.OTPResendCooldown,
+	})
+
 	router := transporthttp.NewRouter(transporthttp.RouterDeps{
 		Logger:         logger,
 		AllowedOrigins: cfg.CORSAllowedOrigins,
 		DBChecker:      pgClient,
 		RedisChecker:   redisClient,
+		RateLimiter:    rateLimiter,
+		AuthService:    authSvc,
+		TokenService:   tokenSvc,
+		Denylist:       sessionStore,
+		CookieSecure:   cfg.CookieSecure,
 	})
 
 	srv := &http.Server{
