@@ -155,7 +155,7 @@ Every feature follows the **Red → Green → Refactor → Verify** loop:
 
 ## 7. Security & Code Quality Standards
 
-- **Passwords:** Hash with `argon2id` (`golang.org/x/crypto/argon2`), unique per-user cryptographic salt, constant-time verification.
+- **Email OTP Auth (Primary Onboarding):** Generate 6-digit OTPs via `crypto/rand`, store only HMAC-SHA256 digests in Redis with bounded TTL (10 min), resend cooldown (60s), max verification attempts (5), constant-time comparison, and atomic single-use deletion. (If password-based auth is added later, hash with `argon2id` + per-user random salt.)
 - **Tokens & Cookies:** Short-lived JWT access tokens (e.g., 15 min) + opaque or JWT refresh tokens stored in `HttpOnly`, `SameSite=Lax`, `Secure` (in prod) cookies and backed by Redis sessions with rotation.
 - **Input Validation:** Validate all request payloads at the boundary (Go `validator/v10` + frontend Zod schemas). Reject unknown/oversized payloads (`http.MaxBytesReader`).
 - **Error Handling:** Consistent JSON error envelope `{ "error": { "code": "...", "message": "...", "details": ... } }`. Never leak stack traces, SQL errors, or internal secrets to clients.
