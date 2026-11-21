@@ -14,6 +14,7 @@ import (
 	"github.com/clickTwice26/fatman/services/api/internal/infrastructure/postgres"
 	infraredis "github.com/clickTwice26/fatman/services/api/internal/infrastructure/redis"
 	transporthttp "github.com/clickTwice26/fatman/services/api/internal/transport/http"
+	"github.com/clickTwice26/fatman/services/api/migrations"
 )
 
 func main() {
@@ -36,6 +37,11 @@ func main() {
 		os.Exit(1)
 	}
 	defer pgClient.Close()
+
+	if err := migrations.Up(ctx, pgClient.Pool); err != nil {
+		logger.Error("failed to apply database migrations", slog.Any("error", err))
+		os.Exit(1)
+	}
 
 	redisClient, err := infraredis.New(ctx, cfg.RedisAddr, cfg.RedisPassword, cfg.RedisDB)
 	if err != nil {
