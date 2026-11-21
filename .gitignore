@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.*
+
+# Next.js / Frontend build outputs
+apps/web/.next/
+apps/web/out/
+apps/web/build/
+apps/web/coverage/
+apps/web/playwright-report/
+apps/web/test-results/
+*.tsbuildinfo
+next-env.d.ts
+
+# Go / Backend build outputs
+services/api/bin/
+services/api/tmp/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+coverage.txt
+coverage.html
+
+# Environment & Secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Docker & Local data
+infra/docker/data/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS & Editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.swp
+*.swo
